@@ -62,9 +62,16 @@ class _ChatBotPageState extends State<ChatBotPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final reply = data['reply'] ?? "No reply from server.";
+        final sentiment = data['sentiment'] ?? 'unknown';
+        final confidence = data['confidence']?.toDouble() ?? 0.0;
 
         setState(() {
-          _messages.add({"text": reply, "isUser": false});
+          _messages.add({
+            "text": reply,
+            "isUser": false,
+            "sentiment": sentiment,
+            "confidence": confidence,
+          });
         });
       } else {
         setState(() {
@@ -129,7 +136,6 @@ class _ChatBotPageState extends State<ChatBotPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // 💬 Chat Area
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -162,21 +168,33 @@ class _ChatBotPageState extends State<ChatBotPage> {
                             ),
                           if (!isUser) SizedBox(width: 8),
                           Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isUser
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Text(
-                                msg['text'],
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.black87,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: isUser
+                                        ? Colors.white
+                                        : Colors.white.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Text(
+                                    msg['text'],
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (!isUser &&
+                                    msg.containsKey('sentiment') &&
+                                    msg.containsKey('confidence'))
+                                  SentimentTag(
+                                    sentiment: msg['sentiment'],
+                                    confidence: msg['confidence'],
+                                  ),
+                              ],
                             ),
                           ),
                           if (isUser) SizedBox(width: 8),
@@ -198,7 +216,6 @@ class _ChatBotPageState extends State<ChatBotPage> {
               ),
             ),
 
-            //  Loading indicator
             if (isLoading)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -208,7 +225,6 @@ class _ChatBotPageState extends State<ChatBotPage> {
                 ),
               ),
 
-            //  Input area
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
               child: Row(
@@ -245,6 +261,50 @@ class _ChatBotPageState extends State<ChatBotPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class SentimentTag extends StatefulWidget {
+  final String sentiment;
+  final double confidence;
+
+  const SentimentTag({required this.sentiment, required this.confidence});
+
+  @override
+  _SentimentTagState createState() => _SentimentTagState();
+}
+
+class _SentimentTagState extends State<SentimentTag> {
+  double _opacity = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(seconds: 3), () {
+      setState(() {
+        _opacity = 0.0;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: Duration(seconds: 2),
+      opacity: _opacity,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: EdgeInsets.only(top: 8),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '${widget.sentiment} (${widget.confidence.toStringAsFixed(2)})',
+          style: TextStyle(fontSize: 12, color: Colors.white),
         ),
       ),
     );
